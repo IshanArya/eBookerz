@@ -60,7 +60,7 @@ ircXdcc('irc.irchighway.net', 'nodebot', {
 
 
 		app.get('/', function(req, res) {
-			botInstance.say("#ebooks", "@search fjdlageafe");
+			botInstance.say("#ebooks", "@search harry potter");
 			res.send("Hi!");
 		});
 
