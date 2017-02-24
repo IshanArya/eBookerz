@@ -91,6 +91,12 @@ window.onload = function() {
     	  socket.emit('deleteResults', fileName);
     	});
     });
+    socket.on('queued', function(position) {
+        statusField.textContent = "STATUS: queued @ " + position;
+    });
+    socket.on('serving', function() {
+        statusField.textContent = "STATUS: you are currently being served by server :)";
+    });
     socket.on('noResults', function() {
         statusField.textContent = "STATUS: No Results";
         search.disabled = false;

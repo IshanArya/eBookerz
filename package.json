@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "IRC ebook downloader",
   "main": "app.js",
+  "scripts": {
+    "test": "node app.js"
+  },
   "dependencies": {
     "body-parser": "^1.16.0",
     "ejs": "^2.5.3",
@@ -12,9 +15,6 @@
     "socket.io": "^1.7.2"
   },
   "devDependencies": {},
-  "scripts": {
-    "test": "node app.js"
-  },
   "author": "Cindr™",
   "license": "ISC"
 }
