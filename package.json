@@ -2,9 +2,12 @@
   "name": "ebookerz",
   "version": "1.0.0",
   "description": "IRC ebook downloader",
+  "engines": {
+    "node": "7.6.0"
+  },
   "main": "app.js",
   "scripts": {
-    "test": "node app.js"
+    "start": "node app.js"
   },
   "dependencies": {
     "body-parser": "^1.16.0",
