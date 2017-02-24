@@ -24,7 +24,7 @@ var botInstance;
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(favicon(path.join("images", "favicon.io")));
+app.use(favicon(path.join(__dirname, "public", "images", "favicon.io")));
 app.set("view engine", "ejs");
 
 var clients = {};
