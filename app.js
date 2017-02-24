@@ -197,7 +197,7 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function() {
         //console.log("user disconnected");
         delete clients[socket.id];
-        for(var i = queue.length; i >= 0; i--) {
+        for(var i = queue.length - 1; i >= 0; i--) {
             if(queue[i].socketid === socket.id) {
                 queue.slice(i, 1);
                 break;
