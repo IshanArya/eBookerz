@@ -5,7 +5,7 @@ var io = require('socket.io')(http);
 var ircXdcc = require('irc-xdcc');
 var bodyParser = require('body-parser');
 var path = require('path');
-var fs = require('fs');
+var fs = require('fs-extra');
 var util = require('util');
 
 var log_file = fs.createWriteStream(path.join(__dirname, "logs", "/debug.log"), {flags : 'w'});
@@ -33,9 +33,9 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 
 var clients = {};
-var fileClaims = {};
 var queue = [];
 var queueOpen = true;
+var currentlyServing;
 
 ircXdcc('irc.irchighway.net', 'ebookerz', {
     port: 6669,
@@ -44,6 +44,9 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
     channels: ["#ebooks"]
 }).then(function(instance) {
     botInstance = instance;
+    botInstance.addListener('error', function(message) {
+        console.error("ERROR: " + message);
+    });
     botInstance.addListener('registered', function() { 
         console.log('eBookerz bot connected to IRC server');
     });
@@ -52,26 +55,15 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
         //console.log("NOTICE: " + nick + " => " + to + ": " + message);
         if(nick){
             if(nick.toLowerCase() === "search") {
-                message = message.toLowerCase();
                 //console.log("NOTICE: " + nick + " => " + to + ": " + message);
-                if(message.includes("sorry")) {
-                    for (var index in fileClaims) {
-                        if (fileClaims.hasOwnProperty(index) && fileClaims[index].hasOwnProperty("query")) {
-                            var query = fileClaims[index].query.toLowerCase();
-                            if(message.includes(query)) {
-                                clients[fileClaims[index].socketid].emit('noResults');
-                                console.log("NO RESULTS: " + query);
-                                delete fileClaims[index];
-                                if(queue[0]) {
-                                    retrieveFile();
-                                } else {
-                                    queueOpen = true;
-                                }
-                                break;
-                            }
-                            
-                        }
+                if(message.toLowerCase().includes("sorry")) {
+                    clients[currentlyServing.socketid].emit('noResults');
+                    if(queue[0]) {
+                        retrieveFile();
+                    } else {
+                        queueOpen = true;
                     }
+                    
                 }
             }
         }
@@ -87,6 +79,11 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
     });
     botInstance.addListener('xdcc-created', function created(xdccInstance) {
         console.log("Now serving " + xdccInstance.xdccInfo.xdccPoolIndex + "...");
+        if(clients.hasOwnProperty(currentlyServing.socketid)) {
+            xdccInstance.socketid = currentlyServing.socketid;
+        } else {
+            botInstance.removeXdcc(xdccInstance);
+        }
         if(queue[0]) {
             retrieveFile();
         } else {
@@ -95,46 +92,37 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
 
     });
     botInstance.addListener('xdcc-progress', function(xdccInstance, received) {
-        if(xdccInstance.xdccInfo.fileName.slice(-3) !== "zip") {
-            clients[fileClaims[xdccInstance.xdccInfo.xdccPoolIndex].socketid].emit('downloadProgress', received);
+        if(clients.hasOwnProperty(xdccInstance.socketid)) {
+            if(xdccInstance.xdccInfo.fileName.slice(-3) !== "zip") {
+                clients[xdccInstance.socketid].emit('downloadProgress', received);
+            }
+        } else {
+            botInstance.removeXdcc(xdccInstance);
         }
     });
     botInstance.addListener('xdcc-complete', function complete(xdccInstance) {
         var fileName = xdccInstance.xdccInfo.fileName;
-        var fileIndex = xdccInstance.xdccInfo.xdccPoolIndex;
         console.log(fileName);
        
         if(fileName.slice(-3) === "zip") {
-            clients[fileClaims[fileIndex].socketid].emit('displayResults', fileName);
+            clients[xdccInstance.socketid].emit('displayResults', fileName);
         } else {
-            clients[fileClaims[fileIndex].socketid].emit('fileReady', fileName);
+            clients[xdccInstance.socketid].emit('fileReady', fileName);
         }
-        delete fileClaims[fileIndex];
-        //botInstance.removeXdcc(xdccInstance);
     });
 }).catch(console.error.bind(console));
 
 function retrieveFile() {
     queueOpen = false;
-    var client = queue[0];
-    if(client.hasOwnProperty("query")) {
-        botInstance.getXdccPool()
-            .then(function(xdccPool) {
-                fileClaims[xdccPool.length] = client;
-            });
-        clients[client.socketid].emit('serving');
-        botInstance.say("#ebooks", ("@search " + client.query));
-        console.log("SEARCHING: " + client.query);
+    currentlyServing = queue[0];
+    clients[currentlyServing.socketid].emit('serving');
+    if(currentlyServing.hasOwnProperty("query")) {
+        botInstance.say("#ebooks", ("@search " + currentlyServing.query));
+        console.log("SEARCHING: " + currentlyServing.query);
 
-    } else if(client.hasOwnProperty("downloadOption")) {
-        botInstance.getXdccPool()
-            .then(function(xdccPool) {
-                //console.log("LENGTH: " + xdccPool.length);
-                fileClaims[xdccPool.length] = client;
-            });
-        clients[client.socketid].emit('serving');
-        botInstance.say("#ebooks", (client.downloadOption));
-        console.log("RETRIEVING: " + client.downloadOption);
+    } else if(currentlyServing.hasOwnProperty("downloadOption")) {
+        botInstance.say("#ebooks", (currentlyServing.downloadOption));
+        console.log("RETRIEVING: " + currentlyServing.downloadOption);
 
     }
     queue.splice(0, 1);
@@ -208,29 +196,27 @@ io.on('connection', function(socket) {
     
     socket.on('disconnect', function() {
         //console.log("user disconnected");
-        
-        for (var index in fileClaims) {
-            if (fileClaims.hasOwnProperty(index)) {
-                if(fileClaims[index].socketid === socket.id) {
-                    botInstance.getXdccPool()
-                        .then(function(xdccPool) {
-                            botInstance.removePoolId(index);
-                        });
-                    delete fileClaims[index];
-                    break;
-                        
-                }
-                
+        delete clients[socket.id];
+        for(var i = queue.length; i >= 0; i--) {
+            if(queue[i].socketid = socket.id) {
+                queue.slice(i, 1);
+                break;
             }
         }
-        delete clients[socket.id];
         if(isEmpty(clients)) {
             botInstance.getXdccPool()
                 .then(function(xdccPool) {
-                    while(xdccPool.length > 0) {
-                        botInstance.removePoolId(0);
+                    for(var i = xdccPool.length - 1; i >= 0; i--) {
+                        botInstance.removeXdcc(xdccPool[i]);
                     }
                 });
+            fs.emptyDir(path.join(__dirname, "downloads"), function(err) {
+                if(err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Downloads directory emptied!");
+            });
         }
     });
 });

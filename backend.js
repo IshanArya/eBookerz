@@ -149,3 +149,38 @@ app.post('/search', function(req, res) {
         
     res.redirect('/');
 });
+
+
+
+for (var index in fileClaims) {
+    if (fileClaims.hasOwnProperty(index) && fileClaims[index].hasOwnProperty("query")) {
+        var query = fileClaims[index].query.toLowerCase();
+        if(message.includes(query)) {
+            clients[fileClaims[index].socketid].emit('noResults');
+            console.log("NO RESULTS: " + query);
+            delete fileClaims[index];
+            if(queue[0]) {
+                retrieveFile();
+            } else {
+                queueOpen = true;
+            }
+            break;
+        }
+        
+    }
+}
+
+for (var index in fileClaims) {
+            if (fileClaims.hasOwnProperty(index)) {
+                if(fileClaims[index].socketid === socket.id) {
+                    botInstance.getXdccPool()
+                        .then(function(xdccPool) {
+                            botInstance.removePoolId(index);
+                        });
+                    delete fileClaims[index];
+                    break;
+                        
+                }
+                
+            }
+        }
