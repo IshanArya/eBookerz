@@ -17,6 +17,7 @@
     "fs-extra": "^2.0.0",
     "irc": "^0.5.2",
     "irc-xdcc": "0.0.22",
+    "serve-favicon": "^2.4.0",
     "socket.io": "^1.7.2"
   },
   "devDependencies": {},

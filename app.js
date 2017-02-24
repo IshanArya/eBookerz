@@ -4,6 +4,7 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var ircXdcc = require('irc-xdcc');
 var bodyParser = require('body-parser');
+var favicon = require('serve-favicon');
 var path = require('path');
 var fs = require('fs-extra');
 
@@ -23,6 +24,7 @@ var botInstance;
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(favicon(path.join("images", "favicon.io")));
 app.set("view engine", "ejs");
 
 var clients = {};
