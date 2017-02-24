@@ -5,7 +5,8 @@ var io = require('socket.io')(http);
 var ircXdcc = require('irc-xdcc');
 var bodyParser = require('body-parser');
 var path = require('path');
-var fs = require('fs-extra');
+var fs = require('fs');
+var fse = require('fs-extra');
 var util = require('util');
 
 var log_file = fs.createWriteStream(__dirname + "/logs/debug.log", {flags : 'w'});
@@ -210,7 +211,7 @@ io.on('connection', function(socket) {
                         botInstance.removeXdcc(xdccPool[i]);
                     }
                 });
-            fs.emptyDir(path.join(__dirname, "downloads"), function(err) {
+            fse.emptyDir(path.join(__dirname, "downloads"), function(err) {
                 if(err) {
                     console.error(err);
                     return;
