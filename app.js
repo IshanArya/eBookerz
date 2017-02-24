@@ -199,7 +199,7 @@ io.on('connection', function(socket) {
         delete clients[socket.id];
         for(var i = queue.length - 1; i >= 0; i--) {
             if(queue[i].socketid === socket.id) {
-                queue.slice(i, 1);
+                queue.splice(i, 1);
                 break;
             }
         }
