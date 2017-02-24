@@ -8,7 +8,7 @@ var path = require('path');
 var fs = require('fs-extra');
 var util = require('util');
 
-var log_file = fs.createWriteStream(path.join(__dirname, "logs", "/debug.log"), {flags : 'w'});
+var log_file = fs.createWriteStream(__dirname + "/logs/debug.log", {flags : 'w'});
 var log_stdout = process.stdout;
 var port = process.env.PORT || 3000;
 
