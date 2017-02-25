@@ -33,9 +33,13 @@ var queueOpen = true;
 var currentlyServing;
 
 ircXdcc('irc.irchighway.net', 'ebookerz', {
+    userName: 'ebookerz',
+    realName: "The eBookerz",
     port: 6669,
     destPath: path.join(__dirname, "downloads"),
     acceptUnpooled: true,
+    autoRejoin: true,
+    autoConnect: true,
     channels: ["#ebooks"]
 }).then(function(instance) {
     botInstance = instance;
@@ -76,7 +80,11 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
         console.log("Now serving " + xdccInstance.xdccInfo.xdccPoolIndex + "...");
         if(clients.hasOwnProperty(currentlyServing.socketid)) {
             xdccInstance.socketid = currentlyServing.socketid;
+            if(xdccInstance.xdccInfo.fileName.slice(-3) !== "zip") {
+                clients[currentlyServing.socketid].emit('fileSize', xdccInstance.xdccInfo.fileSize);
+            }
         } else {
+            console.log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
             botInstance.removeXdcc(xdccInstance);
         }
         if(queue[0]) {
@@ -92,6 +100,7 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
                 clients[xdccInstance.socketid].emit('downloadProgress', received);
             }
         } else {
+            console.log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
             botInstance.removeXdcc(xdccInstance);
         }
     });

@@ -10,6 +10,7 @@ window.onload = function() {
     var resultsField = document.getElementById('results');
     
     
+    var fileSize = 0;
     
     
     search.addEventListener('focus', function() {
@@ -102,11 +103,14 @@ window.onload = function() {
         search.disabled = false;
         search.style.cursor = "text";
     });
+    socket.on('fileSize', function(xdccFileSize) {
+        fileSize = xdccFileSize;
+    });
     socket.on('startingDownload', function() {
         statusField.textContent = "STATUS: Download starting server side.";
     });
     socket.on('downloadProgress', function(bytes) {
-        statusField.textContent = "PROGRESS: " + bytes + " downloaded...";
+        statusField.textContent = "PROGRESS: " + bytes + " / " + fileSize + " bytes downloaded...";
     });
     socket.on('fileReady', function(fileName) {
         search.disabled = false;
