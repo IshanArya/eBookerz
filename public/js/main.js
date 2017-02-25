@@ -11,6 +11,7 @@ window.onload = function() {
     
     
     var fileSize = 0;
+    var queuePosition = 0;
     
     
     search.addEventListener('focus', function() {
@@ -93,10 +94,23 @@ window.onload = function() {
     	});
     });
     socket.on('queued', function(position) {
-        statusField.textContent = "STATUS: queued @ " + position;
+        queuePosition = position;
+        statusField.textContent = "STATUS: queued @ " + queuePosition;
+    });
+    socket.on('queuedown', function() {
+        queuePosition--;
+        if(queuePosition > 0) {
+            statusField.textContent = "STATUS: queued @ " + queuePosition;
+        }
     });
     socket.on('serving', function() {
+        queuePosition = 0;
         statusField.textContent = "STATUS: you are currently being served by the server :)";
+    });
+    socket.on('failed', function() {
+        statusField.textContent = "STATUS: failed :(";
+        search.disabled = false;
+        search.style.cursor = "text";
     });
     socket.on('noResults', function() {
         statusField.textContent = "STATUS: No Results";
@@ -110,7 +124,7 @@ window.onload = function() {
         statusField.textContent = "STATUS: Download starting server side.";
     });
     socket.on('downloadProgress', function(bytes) {
-        statusField.textContent = "PROGRESS: " + bytes + " / " + fileSize + " bytes downloaded...";
+        statusField.textContent = "PROGRESS: " + bytes + " bytes downloaded...";
     });
     socket.on('fileReady', function(fileName) {
         search.disabled = false;

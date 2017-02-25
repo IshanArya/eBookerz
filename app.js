@@ -31,6 +31,7 @@ var clients = {};
 var queue = [];
 var queueOpen = true;
 var currentlyServing;
+var searchTimeout;
 
 ircXdcc('irc.irchighway.net', 'ebookerz', {
     userName: 'ebookerz',
@@ -43,32 +44,34 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
     channels: ["#ebooks"]
 }).then(function(instance) {
     botInstance = instance;
-    botInstance.addListener('error', function(message) {
-        console.error("ERROR: " + message);
+    botInstance.addListener('error', function(err) {
+        if(err.xdccInfo.error === "no dcc message" ) {
+
+        } else {
+            console.error(err);
+        }
     });
     botInstance.addListener('registered', function() { 
         console.log('eBookerz bot connected to IRC server');
     });
     
     botInstance.addListener('notice', function(nick, to, message) {
-        //console.log("NOTICE: " + nick + " => " + to + ": " + message);
+        console.log("NOTICE: " + nick + " => " + to + ": " + message);
         if(nick){
             if(nick.toLowerCase() === "search") {
                 //console.log("NOTICE: " + nick + " => " + to + ": " + message);
                 if(message.toLowerCase().includes("sorry")) {
                     clients[currentlyServing.socketid].emit('noResults');
-                    if(queue[0]) {
-                        retrieveFile();
-                    } else {
-                        queueOpen = true;
-                    }
+                    retrieveFile();
                     
                 }
             }
         }
     });
     botInstance.addListener('ctcp-privmsg', function(from, to, message) {
-        console.log("CTCP Privmsg: " + from + " => " + to + ": " + message);
+        if(to !== "#ebooks") {
+            console.log("CTCP Privmsg: " + from + " => " + to + ": " + message);
+        }
     });
     botInstance.addListener('ctcp-notice', function(from, to, message) {
         console.log("CTCP Notice: " + from + " => " + to + ": " + message);
@@ -80,18 +83,15 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
         console.log("Now serving " + xdccInstance.xdccInfo.xdccPoolIndex + "...");
         if(clients.hasOwnProperty(currentlyServing.socketid)) {
             xdccInstance.socketid = currentlyServing.socketid;
-            if(xdccInstance.xdccInfo.fileName.slice(-3) !== "zip") {
-                clients[currentlyServing.socketid].emit('fileSize', xdccInstance.xdccInfo.fileSize);
-            }
+            xdccInstance.timeout = setTimeout(function() {
+                clients[xdccInstance.socketid].emit('failed');
+                botInstance.removeXdcc(xdccInstance);
+            }, 300000);
         } else {
             console.log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
             botInstance.removeXdcc(xdccInstance);
         }
-        if(queue[0]) {
-            retrieveFile();
-        } else {
-            queueOpen = true;
-        }
+        retrieveFile();
 
     });
     botInstance.addListener('xdcc-progress', function(xdccInstance, received) {
@@ -107,6 +107,8 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
     botInstance.addListener('xdcc-complete', function complete(xdccInstance) {
         var fileName = xdccInstance.xdccInfo.fileName;
         console.log(fileName);
+
+        clearTimeout(xdccInstance.timeout);
        
         if(fileName.slice(-3) === "zip") {
             clients[xdccInstance.socketid].emit('displayResults', fileName);
@@ -117,19 +119,35 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
 }).catch(console.error.bind(console));
 
 function retrieveFile() {
-    queueOpen = false;
-    currentlyServing = queue[0];
-    clients[currentlyServing.socketid].emit('serving');
-    if(currentlyServing.hasOwnProperty("query")) {
-        botInstance.say("#ebooks", ("@search " + currentlyServing.query));
-        console.log("SEARCHING: " + currentlyServing.query);
-
-    } else if(currentlyServing.hasOwnProperty("downloadOption")) {
-        botInstance.say("#ebooks", (currentlyServing.downloadOption));
-        console.log("RETRIEVING: " + currentlyServing.downloadOption);
-
+    if(searchTimeout) {
+        clearTimeout(searchTimeout);
     }
-    queue.splice(0, 1);
+    if(queue[0]) {
+        queueOpen = false;
+        currentlyServing = queue[0];
+        io.sockets.emit('queuedown');
+        clients[currentlyServing.socketid].emit('serving');
+        if(currentlyServing.hasOwnProperty("query")) {
+            botInstance.say("#ebooks", ("@search " + currentlyServing.query));
+            console.log("SEARCHING: " + currentlyServing.query);
+
+        } else if(currentlyServing.hasOwnProperty("downloadOption")) {
+            botInstance.say("#ebooks", (currentlyServing.downloadOption));
+            console.log("RETRIEVING: " + currentlyServing.downloadOption);
+
+        }
+        searchTimeout = setTimeout(function() {
+            clients[currentlyServing.socketid].emit('failed');
+            if(queue[0]) {
+                retrieveFile();
+            } else {
+                queueOpen = true;
+            }
+        }, 360000);
+        queue.splice(0, 1);
+    } else {
+        queueOpen = true;
+    }
 
 }
 
@@ -178,14 +196,14 @@ io.on('connection', function(socket) {
     socket.on('search', function(query) {
         queue.push({socketid: socket.id, query: query});
         socket.emit('queued', queue.length);
-        if(queueOpen && queue[0]) {
+        if(queueOpen) {
             retrieveFile();
         }
     });
     socket.on('getBook', function(downloadOption) {
         queue.push({socketid: socket.id, downloadOption: downloadOption});
         socket.emit('queued', queue.length);
-        if(queueOpen && queue[0]) {
+        if(queueOpen) {
             retrieveFile();
         }
     });
