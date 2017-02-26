@@ -9,7 +9,16 @@ var path = require('path');
 var fs = require('fs-extra');
 
 var port = process.env.PORT || 3000;
+var debugFile = path.join(__dirname, "logs", "debug.log");
 
+function log(data) {
+    console.log(data);
+    fs.appendFile(debugFile, data + "\r\n", function(err) {
+        if(err) {
+            throw err;
+        }
+    });
+}
 function isEmpty(obj) {
     for(var prop in obj) {
         if(obj.hasOwnProperty(prop)) {
@@ -48,18 +57,18 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
         if(err.xdccInfo.error === "no dcc message" ) {
 
         } else {
-            console.error(err);
+            log(err);
         }
     });
     botInstance.addListener('registered', function() { 
-        console.log('eBookerz bot connected to IRC server');
+        log('eBookerz bot connected to IRC server');
     });
     
     botInstance.addListener('notice', function(nick, to, message) {
-        console.log("NOTICE: " + nick + " => " + to + ": " + message);
+        log("NOTICE: " + nick + " => " + to + ": " + message);
         if(nick){
             if(nick.toLowerCase() === "search") {
-                //console.log("NOTICE: " + nick + " => " + to + ": " + message);
+                //log("NOTICE: " + nick + " => " + to + ": " + message);
                 if(message.toLowerCase().includes("sorry")) {
                     clients[currentlyServing.socketid].emit('noResults');
                     retrieveFile();
@@ -70,17 +79,17 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
     });
     botInstance.addListener('ctcp-privmsg', function(from, to, message) {
         if(to !== "#ebooks") {
-            console.log("CTCP Privmsg: " + from + " => " + to + ": " + message);
+            log("CTCP Privmsg: " + from + " => " + to + ": " + message);
         }
     });
     botInstance.addListener('ctcp-notice', function(from, to, message) {
-        console.log("CTCP Notice: " + from + " => " + to + ": " + message);
+        log("CTCP Notice: " + from + " => " + to + ": " + message);
     });
     botInstance.addListener('pm', function (from, message) {
-        console.log("PM - " + from + ' => ME: ' + message);
+        log("PM - " + from + ' => ME: ' + message);
     });
     botInstance.addListener('xdcc-created', function created(xdccInstance) {
-        console.log("Now serving " + xdccInstance.xdccInfo.xdccPoolIndex + "...");
+        log("Now serving " + xdccInstance.xdccInfo.xdccPoolIndex + "...");
         if(clients.hasOwnProperty(currentlyServing.socketid)) {
             xdccInstance.socketid = currentlyServing.socketid;
             xdccInstance.timeout = setTimeout(function() {
@@ -88,7 +97,7 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
                 botInstance.removeXdcc(xdccInstance);
             }, 300000);
         } else {
-            console.log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
+            log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
             botInstance.removeXdcc(xdccInstance);
         }
         retrieveFile();
@@ -100,13 +109,13 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
                 clients[xdccInstance.socketid].emit('downloadProgress', received);
             }
         } else {
-            console.log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
+            log("REMOVED XDCC: " + xdccInstance.xdccInfo.fileName);
             botInstance.removeXdcc(xdccInstance);
         }
     });
     botInstance.addListener('xdcc-complete', function complete(xdccInstance) {
         var fileName = xdccInstance.xdccInfo.fileName;
-        console.log(fileName);
+        log(fileName);
 
         clearTimeout(xdccInstance.timeout);
        
@@ -129,11 +138,11 @@ function retrieveFile() {
         clients[currentlyServing.socketid].emit('serving');
         if(currentlyServing.hasOwnProperty("query")) {
             botInstance.say("#ebooks", ("@search " + currentlyServing.query));
-            console.log("SEARCHING: " + currentlyServing.query);
+            log("SEARCHING: " + currentlyServing.query);
 
         } else if(currentlyServing.hasOwnProperty("downloadOption")) {
             botInstance.say("#ebooks", (currentlyServing.downloadOption));
-            console.log("RETRIEVING: " + currentlyServing.downloadOption);
+            log("RETRIEVING: " + currentlyServing.downloadOption);
 
         }
         searchTimeout = setTimeout(function() {
@@ -164,7 +173,7 @@ app.get('/getZip', function(req, res) {
     var filePath = path.join(__dirname, "downloads", fileName);
     res.download(filePath, fileName, function(err) {
         if(err) {
-            console.error(err);
+            log(err);
         }
     });
     
@@ -174,24 +183,24 @@ app.get('/download', function(req, res) {
     var filePath = path.join(__dirname, "downloads", fileName);
     res.download(filePath, fileName, function(err) {
         if(err) {
-            console.error(err);
+            log(err);
         }
         fs.unlink(filePath, function(error) {
             if(error) {
-                console.log(error);
-                console.log("NOT DELETED: " + filePath);
+                log(error);
+                log("NOT DELETED: " + filePath);
                 return;
             }
-            console.log("DELETED: " + filePath);
+            log("DELETED: " + filePath);
         });
     });
     
 });
 
 io.on('connection', function(socket) {
-    //console.log('a user connected');
+    //log('a user connected');
     clients[socket.id] = socket;
-    //console.log(socket.id);
+    //log(socket.id);
     
     socket.on('search', function(query) {
         queue.push({socketid: socket.id, query: query});
@@ -210,14 +219,14 @@ io.on('connection', function(socket) {
     socket.on('deleteResults', function(fileName) {
         fs.unlink(path.join(__dirname, "downloads", fileName), function(error) {
             if(error) {
-                console.error(error);
+                log(error);
                 return;
             }
         });
     });
     
     socket.on('disconnect', function() {
-        //console.log("user disconnected");
+        //log("user disconnected");
         delete clients[socket.id];
         for(var i = queue.length - 1; i >= 0; i--) {
             if(queue[i].socketid === socket.id) {
@@ -234,17 +243,17 @@ io.on('connection', function(socket) {
                 });
             fs.emptyDir(path.join(__dirname, "downloads"), function(err) {
                 if(err) {
-                    console.error(err);
+                    log(err);
                     return;
                 }
-                console.log("Downloads directory emptied!");
+                log("Downloads directory emptied!");
             });
         }
     });
 });
 
 http.listen(port, function() {
-    console.log("Server started on " + port + "...");
+    log("Server started on " + port + "...");
 });
 
 
