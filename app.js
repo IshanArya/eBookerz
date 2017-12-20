@@ -1,15 +1,15 @@
-var express = require('express');
-var app = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
-var ircXdcc = require('irc-xdcc');
-var bodyParser = require('body-parser');
-var favicon = require('serve-favicon');
-var path = require('path');
-var fs = require('fs-extra');
+let express = require('express');
+let app = express();
+let http = require('http').Server(app);
+let io = require('socket.io')(http);
+let ircXdcc = require('irc-xdcc');
+let bodyParser = require('body-parser');
+let favicon = require('serve-favicon');
+let path = require('path');
+let fs = require('fs-extra');
 
-var port = process.env.PORT || 3000;
-var debugFile = path.join(__dirname, "logs", "debug.log");
+let port = process.env.PORT || 3000;
+let debugFile = path.join(__dirname, "logs", "debug.log");
 
 function log(data) {
     console.log(data);
@@ -20,7 +20,7 @@ function log(data) {
     });
 }
 function isEmpty(obj) {
-    for(var prop in obj) {
+    for(let prop in obj) {
         if(obj.hasOwnProperty(prop)) {
             return false;
         }
@@ -29,18 +29,18 @@ function isEmpty(obj) {
 }
 
 
-var botInstance;
+let botInstance;
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(favicon(path.join(__dirname, "public", "images", "favicon.ico")));
 app.set("view engine", "ejs");
 
-var clients = {};
-var queue = [];
-var queueOpen = true;
-var currentlyServing;
-var searchTimeout;
+let clients = {};
+let queue = [];
+let queueOpen = true;
+let currentlyServing;
+let searchTimeout;
 
 ircXdcc('irc.irchighway.net', 'ebookerz', {
     userName: 'ebookerz',
@@ -114,7 +114,7 @@ ircXdcc('irc.irchighway.net', 'ebookerz', {
         }
     });
     botInstance.addListener('xdcc-complete', function complete(xdccInstance) {
-        var fileName = xdccInstance.xdccInfo.fileName;
+        let fileName = xdccInstance.xdccInfo.fileName;
         log(fileName);
 
         clearTimeout(xdccInstance.timeout);
@@ -169,8 +169,8 @@ app.get('/test', function(req, res) {
 });
 
 app.get('/getZip', function(req, res) {
-    var fileName = req.query.fileName;
-    var filePath = path.join(__dirname, "downloads", fileName);
+    let fileName = req.query.fileName;
+    let filePath = path.join(__dirname, "downloads", fileName);
     res.download(filePath, fileName, function(err) {
         if(err) {
             log(err);
@@ -179,8 +179,8 @@ app.get('/getZip', function(req, res) {
     
 });
 app.get('/download', function(req, res) {
-    var fileName = req.query.fileName;
-    var filePath = path.join(__dirname, "downloads", fileName);
+    let fileName = req.query.fileName;
+    let filePath = path.join(__dirname, "downloads", fileName);
     res.download(filePath, fileName, function(err) {
         if(err) {
             log(err);
@@ -228,7 +228,7 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function() {
         //log("user disconnected");
         delete clients[socket.id];
-        for(var i = queue.length - 1; i >= 0; i--) {
+        for(let i = queue.length - 1; i >= 0; i--) {
             if(queue[i].socketid === socket.id) {
                 queue.splice(i, 1);
                 break;
@@ -237,7 +237,7 @@ io.on('connection', function(socket) {
         if(isEmpty(clients)) {
             botInstance.getXdccPool()
                 .then(function(xdccPool) {
-                    for(var i = xdccPool.length - 1; i >= 0; i--) {
+                    for(let i = xdccPool.length - 1; i >= 0; i--) {
                         botInstance.removeXdcc(xdccPool[i]);
                     }
                 });

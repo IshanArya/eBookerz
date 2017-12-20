@@ -1,17 +1,17 @@
 window.onload = function() {
-    var socket = io();
+    let socket = io();
     
-    var search = document.getElementById('search');
-    var form = document.getElementById('box');
-    var button = document.getElementById('btn');
+    let search = document.getElementById('search');
+    let form = document.getElementById('box');
+    let button = document.getElementById('btn');
     
-    var statusField = document.getElementById('status');
+    let statusField = document.getElementById('status');
     
-    var resultsField = document.getElementById('results');
+    let resultsField = document.getElementById('results');
     
     
-    var fileSize = 0;
-    var queuePosition = 0;
+    let fileSize = 0;
+    let queuePosition = 0;
     
     
     search.addEventListener('focus', function() {
@@ -22,7 +22,7 @@ window.onload = function() {
     });
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        var query = search.value.trim();
+        let query = search.value.trim();
         if (query) {
     		socket.emit('search', query);
         }
@@ -34,7 +34,7 @@ window.onload = function() {
         statusField.textContent = "Status: WAIT";
     });
     resultsField.addEventListener('click', function(e) {
-        var picked = e.target;
+        let picked = e.target;
         if(picked.className === "downloadOption") {
             socket.emit('getBook', picked.textContent);
             statusField.textContent = "RETRIEVING: " + picked.textContent;
@@ -61,7 +61,7 @@ window.onload = function() {
     	      // get first entry content as text
     	      entries[0].getData(new zip.TextWriter(), function(text) {
     	        // text contains the entry data as a String
-    	        var resultsArray = text.split(/\r?\n/);
+    	        let resultsArray = text.split(/\r?\n/);
     	        text = "<ul>\n";
     	        resultsArray.forEach(function(result) {
     	            if(result.substring(0, 1) === "!") {
